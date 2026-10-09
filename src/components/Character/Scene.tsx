@@ -26,14 +26,26 @@ const Scene = () => {
       let container = { width: rect.width, height: rect.height };
       const aspect = container.width / container.height;
       const scene = sceneRef.current;
+      const isSmallScreen = window.innerWidth <= 768;
 
-      const renderer = new THREE.WebGLRenderer({
-        alpha: true,
-        antialias: window.devicePixelRatio < 2,
-        powerPreference: "high-performance",
-      });
+      let renderer: THREE.WebGLRenderer;
+      try {
+        renderer = new THREE.WebGLRenderer({
+          alpha: true,
+          antialias: window.devicePixelRatio < 2,
+          powerPreference: "high-performance",
+        });
+      } catch (err) {
+        // WebGL unavailable (old device / blocked) - skip 3D, dismiss loader
+        console.warn("WebGL unavailable, skipping 3D character", err);
+        setLoading(100);
+        return;
+      }
       renderer.setSize(container.width, container.height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      // Cap pixel ratio lower on mobile for smoother performance
+      renderer.setPixelRatio(
+        Math.min(window.devicePixelRatio, isSmallScreen ? 1.5 : 2)
+      );
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1;
       canvasDiv.current.appendChild(renderer.domElement);
@@ -74,6 +86,9 @@ const Scene = () => {
             handleResize(renderer, camera, canvasDiv, character)
           );
         }
+      }).catch(() => {
+        // Model failed to load (e.g. offline) - dismiss loader, keep text landing
+        progress.clear();
       });
 
       let mouse = { x: 0, y: 0 },
